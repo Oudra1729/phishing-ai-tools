@@ -1,0 +1,36 @@
+.examples {
+  margin-top: 1.25rem;
+}
+
+.examples h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.ex-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ex-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: #c7d2fe;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  max-width: 100%;
+  text-align: left;
+}
+
+.chip:hover {
+  border-color: rgba(99, 102, 241, 0.55);
+}

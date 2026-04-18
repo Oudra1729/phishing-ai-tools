@@ -1,10 +1,5 @@
 """
-API HTTP (Flask) pour scorer une URL ou un extrait d'email + UI Jinja2 sur GET /.
-
-Lancer depuis la racine du projet :
-    python -m src.api
-
-Charge le dernier modèle sauvegardé (random_forest, etc. selon disponibilité).
+API Flask : prédiction ML, post-traitement domaine, explication, UI React.
 """
 from __future__ import annotations
 
@@ -16,20 +11,32 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask_cors import CORS
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.domain_rules import apply_domain_rules
+from src.explain_util import explain_url
+from src.generator import generate_phishing_urls
 from src.model import ModelTrainer
+
+FRONTEND_DIST = ROOT / "frontend" / "dist"
+FRONTEND_ASSETS = FRONTEND_DIST / "assets"
 
 app = Flask(
     __name__,
     template_folder=str(ROOT / "templates"),
     static_folder=str(ROOT / "static"),
-    static_url_path="/static",
+    static_url_path="/static-legacy",
 )
+_cors = os.environ.get("CORS_ORIGINS")
+_origins: str | list[str] = (
+    [o.strip() for o in _cors.split(",") if o.strip()] if _cors else "*"
+)
+CORS(app, resources={r"/*": {"origins": _origins}})
 log = logging.getLogger("api")
 
 _PIPELINE = None
@@ -74,13 +81,65 @@ _URL_IN_TEXT = re.compile(
 
 
 def extract_urls_from_email(text: str) -> list:
-    """Extrait des URLs grossières depuis le corps d'un email."""
     return _URL_IN_TEXT.findall(text or "")
 
 
-@app.route("/", methods=["GET"])
-def index():
-    return render_template("index.html")
+def _predict_urls_with_rules(pipe, model_name: str, urls: list[str]) -> list[dict]:
+    """Infère puis applique les règles domaine (liste blanche, typosquatting)."""
+    if not urls:
+        return []
+    df = pd.DataFrame({"url": urls})
+    pred = pipe.predict(df)
+    try:
+        proba_mat = pipe.predict_proba(df)
+        probas = proba_mat[:, 1]
+    except Exception:
+        probas = None
+
+    out: list[dict] = []
+    for i, u in enumerate(urls):
+        raw_l = int(pred[i])
+        if probas is not None:
+            raw_p = float(probas[i])
+        else:
+            raw_p = 1.0 if raw_l == 1 else 0.0
+        rules = apply_domain_rules(u, raw_p, raw_l)
+        log.info(
+            "predict_raw: url=%r domain=%s raw_proba=%.4f raw_label=%s",
+            u,
+            rules["domain"],
+            raw_p,
+            raw_l,
+        )
+        log.info(
+            "predict_adj: url=%r adjusted_proba=%.4f label=%s adjustment=%s",
+            u,
+            rules["proba"],
+            rules["label"],
+            rules["adjustment"],
+        )
+        proba_final = rules["proba"]
+        item = {
+            "url": u,
+            "domain": rules["domain"],
+            "label": rules["label"],
+            "class": rules["class"],
+            "proba": proba_final,
+            "proba_raw": rules["proba_raw"],
+            "proba_phishing": proba_final,
+            "model": model_name,
+            "adjustment": rules["adjustment"],
+        }
+        out.append(item)
+    return out
+
+
+def _public_class(label: int) -> str:
+    return "safe" if label == 0 else "phishing"
+
+
+def _legacy_class(label: int) -> str:
+    return "benign" if label == 0 else "phishing"
 
 
 @app.route("/health", methods=["GET"])
@@ -91,46 +150,97 @@ def health():
 @app.route("/predict", methods=["POST"])
 def predict():
     """
-    JSON : {"url": "https://..."} OU {"email_text": "..."} pour URLs détectées dans le texte.
+    JSON : { "url"?: "...", "email_text"?: "..." }
+    Évalue séparément l'URL principale et les URLs extraites du texte.
     """
     data = request.get_json(force=True, silent=True) or {}
-    urls = []
-    if "url" in data and data["url"]:
-        urls.append(str(data["url"]))
-    if "email_text" in data and data["email_text"]:
-        urls.extend(extract_urls_from_email(str(data["email_text"])))
+    main_url = (data.get("url") or "").strip()
+    email_text = data.get("email_text")
+    email_text_str = str(email_text).strip() if email_text else ""
 
-    if not urls:
+    email_urls: list[str] = []
+    if email_text_str:
+        email_urls = extract_urls_from_email(email_text_str)
+
+    if not main_url and not email_urls:
         return jsonify({"error": "Fournissez 'url' ou 'email_text' non vide."}), 400
 
     pipe, model_name = get_pipeline()
-    df = pd.DataFrame({"url": urls})
-    pred = pipe.predict(df)
-    out = []
-    try:
-        proba = pipe.predict_proba(df)
-    except Exception:
-        proba = None
-    for i, u in enumerate(urls):
-        row = {
-            "url": u,
-            "label": int(pred[i]),
-            "class": "phishing" if int(pred[i]) == 1 else "benign",
+
+    main_rows: list[dict] = []
+    if main_url:
+        main_rows = _predict_urls_with_rules(pipe, model_name, [main_url])
+
+    email_blocks: list[dict] = []
+    if email_urls:
+        email_blocks = _predict_urls_with_rules(pipe, model_name, email_urls)
+
+    ordered = main_rows + email_blocks
+    legacy_results: list[dict] = []
+    for r in ordered:
+        lr = dict(r)
+        lr["class"] = _legacy_class(r["label"])
+        legacy_results.append(lr)
+
+    main_public = None
+    if main_rows:
+        m = main_rows[0]
+        main_public = {**m, "class": _public_class(m["label"])}
+
+    email_public = [{**e, "class": _public_class(e["label"])} for e in email_blocks]
+
+    return jsonify(
+        {
+            "main_url": main_public,
+            "email_urls": email_public,
+            "results": legacy_results,
             "model": model_name,
         }
-        if proba is not None:
-            row["proba_phishing"] = float(proba[i, 1])
-        out.append(row)
-    return jsonify({"results": out})
+    )
+
+
+@app.route("/explain", methods=["POST"])
+def explain():
+    data = request.get_json(force=True, silent=True) or {}
+    url = (data.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "Fournissez une clé 'url' non vide."}), 400
+    cfg = _load_config()
+    kw = cfg.get("features", {}).get("suspicious_keywords")
+    payload = explain_url(url, suspicious_keywords=kw)
+    return jsonify(payload)
+
+
+@app.route("/examples", methods=["GET"])
+def examples():
+    urls = generate_phishing_urls(n=10, seed=42)
+    return jsonify({"urls": urls})
+
+
+@app.route("/assets/<path:filename>")
+def vite_assets(filename):
+    if not FRONTEND_ASSETS.is_dir():
+        return jsonify({"error": "Frontend build not found"}), 404
+    target = FRONTEND_ASSETS / filename
+    if not target.is_file() or not str(target.resolve()).startswith(str(FRONTEND_ASSETS.resolve())):
+        return jsonify({"error": "Not found"}), 404
+    return send_from_directory(str(FRONTEND_ASSETS), filename)
+
+
+@app.route("/", methods=["GET"])
+def index():
+    index_file = FRONTEND_DIST / "index.html"
+    if index_file.is_file():
+        return send_from_directory(str(FRONTEND_DIST), "index.html")
+    return render_template("index.html")
 
 
 def _preload_model_if_enabled() -> None:
-    """Charge le modèle au démarrage (utile avec gunicorn : pas seulement en `python -m`)."""
     if os.environ.get("PRELOAD_MODEL", "1").lower() in ("0", "false", "no"):
         return
     try:
         get_pipeline()
-    except Exception as exc:  # noqa: BLE001 — on logue et on retente au premier /predict
+    except Exception as exc:  # noqa: BLE001
         log.warning("Préchargement du modèle ignoré au démarrage : %s", exc)
 
 
