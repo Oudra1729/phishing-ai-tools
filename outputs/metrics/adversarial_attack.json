@@ -1,0 +1,7 @@
+{
+  "n_generated_phishing": 30.0,
+  "predicted_as_benign": 0.0,
+  "attack_success_rate": 0.0,
+  "detected_as_phishing": 30.0,
+  "best_model": "logistic_regression"
+}

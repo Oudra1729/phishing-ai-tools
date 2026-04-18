@@ -1,0 +1,62 @@
+{
+  "best_model": "logistic_regression",
+  "adversarial": {
+    "n_generated_phishing": 30.0,
+    "predicted_as_benign": 0.0,
+    "attack_success_rate": 0.0,
+    "detected_as_phishing": 30.0,
+    "best_model": "logistic_regression"
+  },
+  "manual_tests_preview": [
+    {
+      "url": "https://github.com/scikit-learn/scikit-learn",
+      "true_label": 0,
+      "pred": 0
+    },
+    {
+      "url": "https://www.mozilla.org/en-US/firefox/new/",
+      "true_label": 0,
+      "pred": 0
+    },
+    {
+      "url": "https://stri0e-gjib-secure.online/login/verify?next=y3pbz0xl",
+      "true_label": 1,
+      "pred": 1
+    },
+    {
+      "url": "https://update-verify-ynoyl.xyz/secure?s=mkfsvjl73k",
+      "true_label": 1,
+      "pred": 1
+    },
+    {
+      "url": "https://wellsfarrno-909w-secure.info/login/verify?next=90ka5uvu",
+      "true_label": 1,
+      "pred": 1
+    },
+    {
+      "url": "https://docs.python.org/3/",
+      "true_label": 0,
+      "pred": 0
+    },
+    {
+      "url": "https://www.wikipedia.org/wiki/Main_Page",
+      "true_label": 0,
+      "pred": 0
+    },
+    {
+      "url": "http://secure.www.micro1oft.online/signin/secure",
+      "true_label": 1,
+      "pred": 1
+    },
+    {
+      "url": "https://stackoverflow.com/questions/tagged/python",
+      "true_label": 0,
+      "pred": 0
+    },
+    {
+      "url": "http://noreply@chase-verify.info/account/update",
+      "true_label": 1,
+      "pred": 1
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "name": "gradient_boosting",
+  "sklearn_pipeline": true
+}

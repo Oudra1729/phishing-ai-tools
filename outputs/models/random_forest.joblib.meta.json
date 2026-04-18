@@ -1,0 +1,4 @@
+{
+  "name": "random_forest",
+  "sklearn_pipeline": true
+}

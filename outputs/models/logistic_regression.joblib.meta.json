@@ -1,0 +1,4 @@
+{
+  "name": "logistic_regression",
+  "sklearn_pipeline": true
+}

@@ -1,0 +1,3 @@
+# Après installation de OpenMP sur macOS : brew install libomp
+# pip install -r requirements-optional.txt
+xgboost>=2.0.0
