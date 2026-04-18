@@ -1,10 +1,10 @@
 """
-API HTTP minimale (Flask) pour scorer une URL ou un extrait d'email.
+API HTTP (Flask) pour scorer une URL ou un extrait d'email + UI Jinja2 sur GET /.
 
 Lancer depuis la racine du projet :
     python -m src.api
 
-Charge le dernier modèle sauvegardé (gradient_boosting ou random_forest selon disponibilité).
+Charge le dernier modèle sauvegardé (random_forest, etc. selon disponibilité).
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -24,7 +24,12 @@ if str(ROOT) not in sys.path:
 
 from src.model import ModelTrainer
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=str(ROOT / "templates"),
+    static_folder=str(ROOT / "static"),
+    static_url_path="/static",
+)
 log = logging.getLogger("api")
 
 _PIPELINE = None
@@ -75,7 +80,7 @@ def extract_urls_from_email(text: str) -> list:
 
 @app.route("/", methods=["GET"])
 def index():
-    return jsonify({"message": "Phishing Detection API is running"})
+    return render_template("index.html")
 
 
 @app.route("/health", methods=["GET"])
@@ -136,7 +141,6 @@ def main():
     logging.basicConfig(level=logging.INFO)
     cfg = _load_config()
     api_cfg = cfg.get("api", {})
-    # Hébergeurs (Render, Railway, Fly…) définissent PORT ; il faut écouter sur 0.0.0.0
     port = int(os.environ.get("PORT", api_cfg.get("port", 5000)))
     host = os.environ.get("HOST", api_cfg.get("host", "127.0.0.1"))
     if os.environ.get("PORT"):

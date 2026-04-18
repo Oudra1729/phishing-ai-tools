@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Phishing URL Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="page">
+      <header class="brand">
+        <div class="brand-badge">AI · Security</div>
+        <h1>Phishing URL Analyzer</h1>
+        <p class="subtitle">
+          Paste a URL to classify it as phishing or safe using your deployed ML
+          model — no page reload.
+        </p>
+      </header>
+
+      <main class="card">
+        <label for="url-input">URL to analyze</label>
+        <div class="input-wrap">
+          <input
+            id="url-input"
+            type="url"
+            name="url"
+            placeholder="https://example.com/login"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button type="button" class="primary" id="analyze-btn">Analyze</button>
+        </div>
+        <p class="hint">Uses <code>POST /predict</code> with JSON — same API as curl.</p>
+
+        <div class="loader" id="loader" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Running model…</span>
+        </div>
+
+        <div class="error" id="error-box" role="alert"></div>
+
+        <div class="result" id="result-box" aria-live="polite">
+          <div class="result-head">
+            <div class="verdict" id="verdict-text"></div>
+            <div class="proba" id="proba-text"></div>
+          </div>
+          <div class="meta" id="meta-text"></div>
+        </div>
+      </main>
+
+      <footer>
+        <a href="{{ url_for('health') }}">GET /health</a>
+        · API status
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        const input = document.getElementById("url-input");
+        const btn = document.getElementById("analyze-btn");
+        const loader = document.getElementById("loader");
+        const errBox = document.getElementById("error-box");
+        const resBox = document.getElementById("result-box");
+        const verdict = document.getElementById("verdict-text");
+        const probaEl = document.getElementById("proba-text");
+        const meta = document.getElementById("meta-text");
+
+        function hideError() {
+          errBox.textContent = "";
+          errBox.classList.remove("visible");
+        }
+
+        function showError(msg) {
+          errBox.textContent = msg;
+          errBox.classList.add("visible");
+        }
+
+        function setLoading(on) {
+          loader.classList.toggle("visible", on);
+          btn.disabled = on;
+        }
+
+        function fmtPct(x) {
+          if (x == null || Number.isNaN(x)) return "—";
+          return (Number(x) * 100).toFixed(1) + "%";
+        }
+
+        async function analyze() {
+          hideError();
+          resBox.classList.remove("visible", "safe", "phishing");
+
+          const url = (input.value || "").trim();
+          if (!url) {
+            showError("Please enter a URL.");
+            return;
+          }
+
+          setLoading(true);
+          try {
+            const res = await fetch("{{ url_for('predict') }}", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ url: url }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+              showError(data.error || "Request failed (" + res.status + ").");
+              return;
+            }
+
+            const r = data.results && data.results[0];
+            if (!r) {
+              showError("Unexpected response from server.");
+              return;
+            }
+
+            const isPhish = Number(r.label) === 1;
+            verdict.textContent = isPhish ? "Likely phishing" : "Likely safe";
+            verdict.className = "verdict " + (isPhish ? "phishing" : "safe");
+
+            probaEl.innerHTML =
+              'Phishing probability: <span>' + fmtPct(r.proba_phishing) + "</span>";
+
+            meta.textContent =
+              "Model: " +
+              (r.model || "—") +
+              " · URL: " +
+              (r.url || url);
+
+            resBox.classList.add("visible", isPhish ? "phishing" : "safe");
+          } catch (e) {
+            showError("Network error. Check connection and try again.");
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        btn.addEventListener("click", analyze);
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") analyze();
+        });
+      })();
+    </script>
+  </body>
+</html>
