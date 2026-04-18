@@ -73,6 +73,11 @@ def extract_urls_from_email(text: str) -> list:
     return _URL_IN_TEXT.findall(text or "")
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"message": "Phishing Detection API is running"})
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
