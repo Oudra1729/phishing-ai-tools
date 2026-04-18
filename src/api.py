@@ -9,6 +9,7 @@ Charge le dernier modèle sauvegardé (gradient_boosting ou random_forest selon 
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -113,13 +114,29 @@ def predict():
     return jsonify({"results": out})
 
 
+def _preload_model_if_enabled() -> None:
+    """Charge le modèle au démarrage (utile avec gunicorn : pas seulement en `python -m`)."""
+    if os.environ.get("PRELOAD_MODEL", "1").lower() in ("0", "false", "no"):
+        return
+    try:
+        get_pipeline()
+    except Exception as exc:  # noqa: BLE001 — on logue et on retente au premier /predict
+        log.warning("Préchargement du modèle ignoré au démarrage : %s", exc)
+
+
+_preload_model_if_enabled()
+
+
 def main():
     logging.basicConfig(level=logging.INFO)
     cfg = _load_config()
-    host = cfg.get("api", {}).get("host", "127.0.0.1")
-    port = int(cfg.get("api", {}).get("port", 5000))
-    debug = bool(cfg.get("api", {}).get("debug", False))
-    # Force load once at startup to fail fast
+    api_cfg = cfg.get("api", {})
+    # Hébergeurs (Render, Railway, Fly…) définissent PORT ; il faut écouter sur 0.0.0.0
+    port = int(os.environ.get("PORT", api_cfg.get("port", 5000)))
+    host = os.environ.get("HOST", api_cfg.get("host", "127.0.0.1"))
+    if os.environ.get("PORT"):
+        host = "0.0.0.0"
+    debug = bool(api_cfg.get("debug", False)) and not os.environ.get("PORT")
     get_pipeline()
     app.run(host=host, port=port, debug=debug)
 

@@ -10,3 +10,4 @@ PyYAML>=6.0
 jupyter>=1.0.0
 ipykernel>=6.25.0
 flask>=3.0.0
+gunicorn>=22.0.0
