@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Phishing URL Analyzer</title>
+    <title>Phishing IA — Détection &amp; génération</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='brand/favicon.png') }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,8 +19,15 @@
   <body>
     <div class="page">
       <header class="brand">
+        <img
+          class="brand-logo-img"
+          src="{{ url_for('static', filename='brand/logo.png') }}"
+          alt="Détection et génération de phishing par IA"
+          width="280"
+        />
         <div class="brand-badge">AI · Security</div>
         <h1>Phishing URL Analyzer</h1>
+        <p class="subtitle brand-tagline">Détection &amp; génération de phishing par IA</p>
         <p class="subtitle">
           Paste a URL to classify it as phishing or safe using your deployed ML
           model — no page reload.

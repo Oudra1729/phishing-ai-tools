@@ -50,6 +50,20 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.brand-logo-img {
+  display: block;
+  max-width: min(100%, 320px);
+  height: auto;
+  margin: 0 auto 1rem;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+}
+
+.subtitle.brand-tagline {
+  color: #a5b4fc;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
 .brand-badge {
   display: inline-flex;
   align-items: center;

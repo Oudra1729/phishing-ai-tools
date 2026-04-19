@@ -1,0 +1,9 @@
+# Render Blueprint — builds the React app inside Docker so / serves the SPA (animations, WebGL).
+# Dashboard: New → Blueprint → connect repo, or set service "Docker" with this Dockerfile.
+
+services:
+  - type: web
+    name: phishing-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .

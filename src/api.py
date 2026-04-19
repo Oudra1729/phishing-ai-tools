@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, abort, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -227,11 +227,37 @@ def vite_assets(filename):
     return send_from_directory(str(FRONTEND_ASSETS), filename)
 
 
+def _send_dist_root_file(name: str):
+    """Fichiers copiés à la racine du build Vite (dossier public/)."""
+    safe = {"logo.png", "favicon.png"}
+    if name not in safe:
+        abort(404)
+    path = FRONTEND_DIST / name
+    if not path.is_file() or not str(path.resolve()).startswith(str(FRONTEND_DIST.resolve())):
+        abort(404)
+    return send_from_directory(str(FRONTEND_DIST), name)
+
+
+@app.route("/logo.png", methods=["GET"])
+def serve_logo_png():
+    return _send_dist_root_file("logo.png")
+
+
+@app.route("/favicon.png", methods=["GET"])
+def serve_favicon_png():
+    return _send_dist_root_file("favicon.png")
+
+
 @app.route("/", methods=["GET"])
 def index():
     index_file = FRONTEND_DIST / "index.html"
     if index_file.is_file():
         return send_from_directory(str(FRONTEND_DIST), "index.html")
+    log.warning(
+        "React SPA missing (%s). Serving legacy Jinja UI — run: cd frontend && npm ci && npm run build "
+        "(or deploy with Docker: build creates frontend/dist).",
+        index_file,
+    )
     return render_template("index.html")
 
 
