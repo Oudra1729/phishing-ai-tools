@@ -4,21 +4,42 @@ import { useHistory } from "./hooks/useHistory.js";
 import ExampleUrls from "./components/ExampleUrls.jsx";
 import ExplanationPanel from "./components/ExplanationPanel.jsx";
 import HistoryList from "./components/HistoryList.jsx";
+import { IconLink, IconMail } from "./components/Icons.jsx";
+import ProgressRing from "./components/ProgressRing.jsx";
 import RiskMeter from "./components/RiskMeter.jsx";
+import LetterGlitch from "./components/LetterGlitch.jsx";
+import SplashCursor from "./components/SplashCursor.jsx";
 import "./App.css";
+
+function StatusBadge({ dangerous }) {
+  return (
+    <span className={`status-badge ${dangerous ? "status-badge--danger" : "status-badge--safe"}`}>
+      {dangerous ? "Dangerous" : "Safe"}
+    </span>
+  );
+}
 
 function ResultSection({ title, row, tonePrefix }) {
   if (!row) return null;
   const bad = row.label === 1;
   const proba = row.proba ?? row.proba_phishing ?? 0;
+  const pct = proba * 100;
+
   return (
     <div className={`result-block ${bad ? "is-bad" : "is-good"} ${tonePrefix || ""}`}>
-      <div className="result-top">
-        <div>
+      <div className="result-block__row">
+        <div className="result-block__main">
           <div className="section-label">{title}</div>
-          <div className="verdict">{bad ? "Phishing" : "Safe"}</div>
+          <div className="result-block__title-row">
+            <h3
+              className={`result-verdict verdict-glow ${bad ? "verdict-glow--danger" : "verdict-glow--safe"}`}
+            >
+              {bad ? "Phishing risk" : "Likely legitimate"}
+            </h3>
+            <StatusBadge dangerous={bad} />
+          </div>
           <div className="sub">
-            Model: <code>{row.model}</code>
+            Model <code>{row.model}</code>
             {row.adjustment && row.adjustment !== "none" ? (
               <>
                 {" "}
@@ -27,24 +48,27 @@ function ResultSection({ title, row, tonePrefix }) {
             ) : null}
           </div>
         </div>
-        <div className="prob-main">
-          {(proba * 100).toFixed(1)}% <span>phishing prob. (adjusted)</span>
-        </div>
+        <ProgressRing
+          value={pct}
+          variant={bad ? "danger" : "safe"}
+          label="Phishing"
+        />
       </div>
-      <RiskMeter label="Phishing probability" valuePct={proba * 100} tone="model" />
+
       <div className="url-line">
-        <span className="muted">URL:</span> {row.url}
+        <span className="muted">URL</span> {row.url}
       </div>
       {row.domain && (
         <div className="url-line small muted">
-          <span className="muted">Registrable domain:</span> {row.domain}
+          <span className="muted">Domain</span> {row.domain}
         </div>
       )}
       {row.proba_raw != null && (
         <div className="url-line small muted">
-          Raw model proba: {(row.proba_raw * 100).toFixed(1)}%
+          Raw model score {(row.proba_raw * 100).toFixed(1)}%
         </div>
       )}
+      <RiskMeter label="Model probability (bar)" valuePct={pct} tone="model" />
     </div>
   );
 }
@@ -129,74 +153,135 @@ export default function App() {
   };
 
   return (
-    <div className="shell">
-      <header className="hero">
-        <div className="badge">AI · Security</div>
-        <h1>Phishing URL Analyzer</h1>
-        <p className="lead">
-          Main URL and email URLs are scored separately. Trusted domains (e.g. paypal.com) reduce false
-          positives from keywords like &quot;login&quot;.
-        </p>
+    <div className="app-shell">
+      <div className="app-glitch-layer" aria-hidden>
+        <div className="app-glitch-fill">
+        <LetterGlitch
+          glitchColors={["#2b4539", "#61dca3", "#61b3dc"]}
+          glitchSpeed={50}
+          centerVignette={false}
+          outerVignette={false}
+          smooth
+          backgroundColor="#0a0a0c"
+        />
+        </div>
+      </div>
+      <div className="app-dim-overlay" aria-hidden />
+      <div className="app-bg" aria-hidden />
+      <div className="app-radial" aria-hidden />
+
+      <header className="app-header">
+        <div className="app-header__brand">
+          <img className="app-header__logo" src="/logo.png" alt="" width={56} height={56} />
+          <div className="app-header__titles">
+            <span className="app-header__eyebrow">AI · Cybersecurity</span>
+            <h1 className="app-header__title">Phishing URL Analyzer</h1>
+            <p className="app-header__tagline">Détection &amp; génération de phishing par IA</p>
+          </div>
+        </div>
       </header>
 
-      <main className="layout">
-        <section className="card main-card">
-          <label className="lbl">Main URL (optional)</label>
-          <input
-            className="inp"
-            type="url"
-            placeholder="https://www.paypal.com/login"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-
-          <label className="lbl mt">Email text (optional)</label>
-          <textarea
-            className="tx"
-            rows={3}
-            placeholder='e.g. "verify here https://secure-login-google.com"'
-            value={emailText}
-            onChange={(e) => setEmailText(e.target.value)}
-          />
-
-          <button type="button" className="btn-primary" disabled={loading} onClick={runAnalyze}>
-            {loading ? "Analyzing…" : "Analyze"}
-          </button>
-
-          {error && (
-            <div className="alert" role="alert">
-              {error}
+      <div className="app-body">
+        <main className="app-center">
+          <section className="glass-card glass-card--tool">
+            <div className="glass-card__head">
+              <h2 className="glass-card__title">Analyze</h2>
+              <p className="glass-card__hint">
+                Main URL and email URLs are scored separately. Trusted domains reduce false positives.
+              </p>
             </div>
-          )}
 
-          <ResultSection title="Main URL" row={mainUrl} tonePrefix="main-sec" />
-
-          {emailUrls.length > 0 && (
-            <div className="email-section">
-              <h3 className="section-label">URLs from email</h3>
-              {emailUrls.map((row, i) => (
-                <ResultSection key={row.url + i} title={`Email URL ${i + 1}`} row={row} tonePrefix="email-sec" />
-              ))}
+            <label className="field-label" htmlFor="url-in">
+              Main URL <span className="optional">(optional)</span>
+            </label>
+            <div className="input-shell">
+              <span className="input-shell__icon" aria-hidden>
+                <IconLink />
+              </span>
+              <input
+                id="url-in"
+                className="input-shell__control"
+                type="url"
+                placeholder="https://www.paypal.com/login"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                autoComplete="off"
+              />
             </div>
-          )}
 
-          {expl && (
-            <>
-              <RiskMeter label="Structural risk (heuristic)" valuePct={expl.structural_risk_score} tone="structural" />
-              <ExplanationPanel data={expl} />
-            </>
-          )}
-        </section>
+            <label className="field-label mt" htmlFor="email-in">
+              Email text <span className="optional">(optional)</span>
+            </label>
+            <div className="input-shell input-shell--area">
+              <span className="input-shell__icon input-shell__icon--top" aria-hidden>
+                <IconMail />
+              </span>
+              <textarea
+                id="email-in"
+                className="input-shell__control input-shell__control--area"
+                rows={3}
+                placeholder='e.g. "verify here https://secure-login-example.com"'
+                value={emailText}
+                onChange={(e) => setEmailText(e.target.value)}
+              />
+            </div>
 
-        <aside className="side">
+            <button type="button" className="btn-analyze" disabled={loading} onClick={runAnalyze}>
+              <span className="btn-analyze__shimmer" aria-hidden />
+              <span className="btn-analyze__label">{loading ? "Analyzing…" : "Analyze"}</span>
+            </button>
+
+            {error && (
+              <div className="alert" role="alert">
+                {error}
+              </div>
+            )}
+          </section>
+
+          {(mainUrl || emailUrls.length > 0 || expl) && (
+            <section className="glass-card glass-card--results">
+              <h2 className="glass-card__title glass-card__title--sm">Results</h2>
+              <ResultSection title="Main URL" row={mainUrl} tonePrefix="main-sec" />
+
+              {emailUrls.length > 0 && (
+                <div className="email-section">
+                  <h3 className="section-label">URLs from email</h3>
+                  {emailUrls.map((row, i) => (
+                    <ResultSection key={row.url + i} title={`Email URL ${i + 1}`} row={row} tonePrefix="email-sec" />
+                  ))}
+                </div>
+              )}
+
+              {expl && (
+                <>
+                  <div className="structural-block">
+                    <span className="structural-block__label">Structural risk (heuristic)</span>
+                    <ProgressRing
+                      value={expl.structural_risk_score}
+                      size={84}
+                      stroke={5}
+                      variant="neutral"
+                      label="Heuristic"
+                    />
+                  </div>
+                  <ExplanationPanel data={expl} />
+                </>
+              )}
+            </section>
+          )}
+        </main>
+
+        <aside className="app-sidebar">
           <HistoryList items={history} onPick={onPickHistory} onClear={clear} />
           <ExampleUrls urls={examples} onUse={(u) => setUrl(u)} />
         </aside>
-      </main>
+      </div>
 
-      <footer className="foot">
-        <span>API: POST /predict (main_url + email_urls) · POST /explain · GET /examples</span>
+      <footer className="app-footer">
+        <span>POST /predict · POST /explain · GET /examples</span>
       </footer>
+
+      <SplashCursor RAINBOW_MODE={false} COLOR="#22d3ee" DYE_RESOLUTION={900} />
     </div>
   );
 }

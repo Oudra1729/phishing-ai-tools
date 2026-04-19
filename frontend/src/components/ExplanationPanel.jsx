@@ -19,7 +19,9 @@ export default function ExplanationPanel({ data }) {
               <div className="explain-desc">{f.description}</div>
             </div>
             <div className="explain-meta">
-              <span className="badge risk">+{(f.contribution_pct ?? 0).toFixed(1)}%</span>
+              <span className="explain-chip explain-chip--risk">
+                +{(f.contribution_pct ?? 0).toFixed(1)}%
+              </span>
               <span className="val">value: {formatVal(f.value)}</span>
             </div>
           </div>

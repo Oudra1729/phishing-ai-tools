@@ -12,13 +12,16 @@
 
 .risk-meter-head strong {
   color: var(--text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
 }
 
 .risk-meter-track {
   height: 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(34, 211, 238, 0.08);
   overflow: hidden;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.35);
 }
 
 .risk-meter-fill {
@@ -28,17 +31,21 @@
 }
 
 .risk-meter-fill.good {
-  background: linear-gradient(90deg, #16a34a, #22c55e);
+  background: linear-gradient(90deg, #15803d, #4ade80);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.65), 0 0 20px rgba(34, 197, 94, 0.25);
 }
 
 .risk-meter-fill.bad {
-  background: linear-gradient(90deg, #dc2626, #f87171);
+  background: linear-gradient(90deg, #b91c1c, #fb7185);
+  box-shadow: 0 0 10px rgba(251, 113, 133, 0.65), 0 0 20px rgba(248, 113, 113, 0.25);
 }
 
 .risk-meter-fill.ok {
-  background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+  background: linear-gradient(90deg, #0284c7, #22d3ee);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.55), 0 0 18px rgba(56, 189, 248, 0.2);
 }
 
 .risk-meter-fill.warn {
-  background: linear-gradient(90deg, #d97706, #fbbf24);
+  background: linear-gradient(90deg, #b45309, #fbbf24);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.45), 0 0 18px rgba(217, 119, 6, 0.2);
 }
